@@ -1,3 +1,4 @@
+import type { LibrarySource } from './host/librarySource.ts';
 import { applyContext } from './host/context.ts';
 import type {
   BootData,
@@ -532,7 +533,7 @@ const start = async (): Promise<void> => {
   };
 
   const loader = createLibraryTrackLoader((query) => echo.library.getTracks(query));
-  const loadPage = async (page: number, search: string): Promise<void> => {
+  const loadPage = async (page: number, search: string, source: LibrarySource = 'local'): Promise<void> => {
     collapse({ reshuffle: false });
     wallReady = false;
     pageLoaded = false;
@@ -546,7 +547,7 @@ const start = async (): Promise<void> => {
     setState('booting');
     overlayCopy('正在读取曲库', '从 ECHO 曲库加载歌曲…');
     try {
-      const result = await loader.load(page, search);
+      const result = await loader.load(page, search, source);
       if (!result || disposed) return;
       browser.update(result);
       tiles = libraryTrackTiles(result.items, result.page);
@@ -597,7 +598,7 @@ const start = async (): Promise<void> => {
       searchLabel: '搜索歌曲',
       unit: '首',
     },
-    onLoad: (page, search) => { void loadPage(page, search); },
+    onLoad: (page, search, source) => { void loadPage(page, search, source); },
     onSwitchWall: (target) => {
       if (target !== 'albums') return;
       void bridge.openPanel('albums');

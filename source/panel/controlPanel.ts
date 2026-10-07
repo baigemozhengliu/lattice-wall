@@ -1,3 +1,4 @@
+import type { LibrarySource } from './host/librarySource.ts';
 import type { LatticeSettings } from './types.ts';
 import { createControlPanelSettings } from './controlPanelSettings.ts';
 import { createControlPanelTabs } from './controlPanelTabs.ts';
@@ -48,7 +49,7 @@ export function createControlPanel(
     settings: LatticeSettings;
     search: ControlPanelSearchCopy;
     lyrics?: boolean;
-    onLoad: (page: number, search: string) => void;
+    onLoad: (page: number, search: string, source: LibrarySource) => void;
     onSwitchWall: (target: ControlPanelWall) => void;
     onPatchSettings: (patch: Partial<LatticeSettings>) => void;
   },
@@ -83,6 +84,18 @@ export function createControlPanel(
   albumWall.dataset.wall = 'albums';
   wallRow.append(libraryWall, albumWall);
   wallSection.append(wallRow);
+
+  const sourceLabel = el('label', 'control-panel__field-label', '曲库来源');
+  const source = el('select');
+  source.setAttribute('aria-label', '曲库来源');
+  for (const [value, label] of [['local', '本地'], ['remote', '远程']]) {
+    const option = el('option', undefined, label);
+    option.value = value!;
+    source.append(option);
+  }
+  source.value = 'local';
+  sourceLabel.append(source);
+  wallSection.append(sourceLabel);
 
   const searchSection = el('div', 'control-panel__search');
   const searchLabel = el('label', 'control-panel__field-label', options.search.searchLabel);
@@ -152,7 +165,7 @@ export function createControlPanel(
 
   const load = (target: number): void => {
     clearTimeout(timer);
-    options.onLoad(target, search.value.trim());
+    options.onLoad(target, search.value.trim(), source.value === 'remote' ? 'remote' : 'local');
   };
 
   const buttons = (): void => {
@@ -210,6 +223,7 @@ export function createControlPanel(
       || event.clientY < rect.top || event.clientY > rect.bottom) close();
   }, { signal });
 
+  source.addEventListener('change', () => load(1), { signal });
   search.addEventListener('input', () => {
     clearTimeout(timer);
     timer = setTimeout(() => load(1), 350);

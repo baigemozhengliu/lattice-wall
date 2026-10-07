@@ -1,3 +1,4 @@
+import type { LibrarySource } from '../host/librarySource.ts';
 import type { Instance, Lattice, LatticeSettings, Point, Tile } from '../types.ts';
 import { createHostBridge } from '../host/bridge.ts';
 import { applyContext } from '../host/context.ts';
@@ -49,6 +50,7 @@ async function start(): Promise<void> {
   let settings = resolveSettings(boot.settings);
   applyAppearance(settings);
   void bridge.requestPresentation(TITLE, settings.immersive);
+  let sourceProvider: LibrarySource = 'local';
   let albums: EchoWorkshopAlbum[] = [];
   let tiles: Tile[] = [];
   let track = boot.queue?.currentTrack ?? null;
@@ -117,7 +119,7 @@ async function start(): Promise<void> {
     if (!content || !instance || !album || mounted === instance.id) return;
     mounted = instance.id;
     const currentAlbum = current !== null && instance.tileIndex === current;
-    details.mount(content, album, currentAlbum);
+    details.mount(content, album, currentAlbum, sourceProvider);
     details.updateCurrent(track?.id ?? null, currentAlbum);
     content.root.style.setProperty('--album-scale', String(wallExpandedScale(camera.viewport.width)));
   }
@@ -222,8 +224,9 @@ async function start(): Promise<void> {
     wall.setLattice(lattice, tiles); wall.setCurrent(current); visuals(); requestFrame();
   };
   // Paging reuses the renderer while dropping old tile references and mounted cards via clear().
-  async function loadPage(page: number, search: string) {
+  async function loadPage(page: number, search: string, source: LibrarySource = 'local') {
     collapse({ reshuffle: false }); ready = false; camera.stop();
+    sourceProvider = source;
     albums = []; tiles = []; current = null;
     wall.clear(); lattice = null;
     updateLocate(); browser.loading(page);
@@ -232,7 +235,7 @@ async function start(): Promise<void> {
     state.querySelector('h2')!.textContent = '正在读取专辑';
     state.querySelector('p')!.textContent = '从 ECHO 曲库加载…';
     try {
-      const result = await loader.load(page, search);
+      const result = await loader.load(page, search, source);
       if (!result || disposed) return;
       browser.update(result);
       albums = result.items; tiles = albumTiles(albums, result.page);
@@ -272,7 +275,7 @@ async function start(): Promise<void> {
       searchLabel: '搜索专辑',
       unit: '张',
     },
-    onLoad: (page, search) => { void loadPage(page, search); },
+    onLoad: (page, search, source) => { void loadPage(page, search, source); },
     onSwitchWall: (target) => {
       if (target !== 'library') return;
       void bridge.openPanel('wall');
